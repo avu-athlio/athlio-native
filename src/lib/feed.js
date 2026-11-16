@@ -1,0 +1,149 @@
+import { supabase } from '@/lib/supabase';
+
+// Home feed queries (port of components/domain/Feed.jsx).
+// Unlike the web, the feed fetches follow / like state once for the whole page
+// and hands it down — posts never query per item.
+
+export const FEED_PAGE_SIZE = 20;
+
+const POST_SELECT = `
+  id,
+  type,
+  content,
+  media,
+  media_urls,
+  created_at,
+  likes_count,
+  comments_count,
+  author_id,
+  match:match_id (
+    id, your_team, opponent, your_score, opponent_score,
+    league, date_of_game, goals, assists, minutes_played,
+    yellow_cards, red_cards,
+    opponent_club:opponent_club_id ( logo_url )
+  ),
+  profiles:author_id (
+    id,
+    full_name,
+    username,
+    role,
+    position,
+    avatar_url,
+    club_id,
+    club:club_id (id, name, logo_url)
+  )
+`;
+
+export const COMMENT_SELECT = `
+  id,
+  content,
+  created_at,
+  author_id,
+  profiles:author_id (
+    id,
+    full_name,
+    username,
+    avatar_url,
+    position
+  )
+`;
+
+export async function fetchFollowingIds(userId) {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.following_id);
+}
+
+// Newest first. Pass `before` (created_at of the last loaded post) for the next page.
+export async function fetchFeedPage(authorIds, before = null) {
+  let query = supabase
+    .from('posts')
+    .select(POST_SELECT)
+    .in('author_id', authorIds)
+    .order('created_at', { ascending: false })
+    .limit(FEED_PAGE_SIZE);
+  if (before) query = query.lt('created_at', before);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchLikedPostIds(userId, postIds) {
+  if (!postIds.length) return [];
+  const { data, error } = await supabase
+    .from('post_likes')
+    .select('post_id')
+    .in('post_id', postIds)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.post_id);
+}
+
+// Profiles the user doesn't follow yet (and isn't), that finished onboarding.
+export async function fetchSuggestedProfiles(excludeIds, limit = 10) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, username, position, avatar_url, club:club_id (name, logo_url)')
+    .not('id', 'in', `(${excludeIds.join(',')})`)
+    .not('username', 'is', null)
+    .limit(limit);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchComments(postId) {
+  const { data, error } = await supabase
+    .from('post_comments')
+    .select(COMMENT_SELECT)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function addComment({ postId, postAuthorId, userId, content }) {
+  const { data, error } = await supabase
+    .from('post_comments')
+    .insert({ post_id: postId, author_id: userId, content })
+    .select(COMMENT_SELECT)
+    .single();
+  if (error) throw error;
+
+  if (postAuthorId && postAuthorId !== userId) {
+    const { error: notifErr } = await supabase.from('notifications').insert({
+      recipient_id: postAuthorId,
+      actor_id: userId,
+      post_id: postId,
+      comment_id: data.id,
+      type: 'comment',
+    });
+    if (notifErr) console.warn('comment notification', notifErr.message);
+  }
+  return data;
+}
+
+// Like notifications, same rows the web wrote.
+export async function notifyLike({ postId, postAuthorId, userId }) {
+  if (!postAuthorId || postAuthorId === userId) return;
+  const { error } = await supabase.from('notifications').insert({
+    recipient_id: postAuthorId,
+    actor_id: userId,
+    post_id: postId,
+    type: 'like',
+  });
+  if (error) console.warn('like notification', error.message);
+}
+
+export async function clearLikeNotification({ postId, userId }) {
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('type', 'like')
+    .eq('post_id', postId)
+    .eq('actor_id', userId);
+  if (error) console.warn('clear like notification', error.message);
+}

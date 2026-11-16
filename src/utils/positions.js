@@ -27,3 +27,13 @@ export function toPositionAbbr(position) {
   const key = position.trim().toLowerCase();
   return POSITION_MAP[key] ?? position.toUpperCase();
 }
+
+// Positions are stored as an array, a comma string, or a JSON-ish string
+// ('["st","lw"]'). Returns abbreviations, e.g. ["ST", "LW"].
+export function positionAbbrs(position) {
+  if (!position) return [];
+  const list = Array.isArray(position)
+    ? position
+    : String(position).replace(/[[\]"]/g, '').split(',');
+  return list.map((p) => toPositionAbbr(String(p).trim())).filter(Boolean);
+}

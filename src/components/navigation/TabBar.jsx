@@ -23,6 +23,13 @@ export function useTabBarSpace() {
   return TAB_BAR_HEIGHT + Math.max(insets.bottom, TAB_BAR_GAP) + 8;
 }
 
+// Visual order. Routes arrive in Expo Router's order (see (tabs)/_layout).
+const ORDER = ['home', 'search', 'progress', 'scouting', 'profile'];
+const rank = (name) => {
+  const i = ORDER.indexOf(name);
+  return i === -1 ? ORDER.length : i;
+};
+
 const LABELS = {
   home: 'Home',
   search: 'Search',
@@ -44,7 +51,7 @@ export default function TabBar({ state, descriptors, emitter, navigateToTab, ins
   };
 
   const items = [];
-  state.routes.forEach((route) => {
+  [...state.routes].sort((a, b) => rank(a.name) - rank(b.name)).forEach((route) => {
     if (!descriptors[route.key]) return;
     const focused = route.key === focusedKey && !showPicker;
     items.push(
