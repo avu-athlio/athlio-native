@@ -43,7 +43,7 @@ export async function fetchInfo(profileId) {
 export async function fetchExperiences(profileId) {
   const { data, error } = await supabase
     .from('experiences')
-    .select('id, start_date, end_date, is_current, matches_played, goals_scored, club:club_id (name, logo_url, league)')
+    .select('id, start_date, end_date, is_current, matches_played, goals_scored, club:club_id (id, name, logo_url, league)')
     .eq('profile_id', profileId)
     .order('start_date', { ascending: false });
   if (error) throw error;
@@ -105,4 +105,98 @@ export async function saveProfile(uid, patch, avatar) {
   const { data, error } = await supabase.from('profiles').update(next).eq('id', uid).select('*').single();
   if (error) throw error;
   return data;
+}
+
+// ── Info tab editing ─────────────────────────────────────────────────────
+
+/** Updates my season-less `info` row (creating it the first time). */
+export async function saveInfo(uid, patch) {
+  const { data: existing, error } = await supabase
+    .from('info')
+    .select('id')
+    .eq('profile_id', uid)
+    .is('season_id', null)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const row = { ...patch, updated_at: new Date().toISOString() };
+  const { error: saveErr } = existing
+    ? await supabase.from('info').update(row).eq('id', existing.id)
+    : await supabase.from('info').insert({ profile_id: uid, ...row });
+  if (saveErr) throw saveErr;
+}
+
+export async function fetchExperience(id) {
+  const { data, error } = await supabase
+    .from('experiences')
+    .select('id, start_date, end_date, is_current, matches_played, goals_scored, club:club_id (id, name, logo_url, league)')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function saveExperience(uid, e) {
+  const row = {
+    club_id: e.club.id,
+    start_date: e.start_date,
+    end_date: e.is_current ? null : e.end_date || null,
+    is_current: e.is_current,
+    matches_played: e.matches_played ?? 0,
+    goals_scored: e.goals_scored ?? 0,
+  };
+  const { error } = e.id
+    ? await supabase.from('experiences').update(row).eq('id', e.id).eq('profile_id', uid)
+    : await supabase.from('experiences').insert({ profile_id: uid, ...row });
+  if (error) throw error;
+}
+
+export async function deleteExperience(uid, id) {
+  const { error } = await supabase.from('experiences').delete().eq('id', id).eq('profile_id', uid);
+  if (error) throw error;
+}
+
+// National teams (supabase/migrations/20261118_profile_history.sql).
+export const nationalMissing = (e) => ['PGRST205', '42P01'].includes(e?.code);
+const NATIONAL_FIELDS = 'id, country_code, team_name, start_date, end_date, is_current, matches_played, goals_scored';
+
+export async function fetchNationalTeams(profileId) {
+  const { data, error } = await supabase
+    .from('national_team_history')
+    .select(NATIONAL_FIELDS)
+    .eq('profile_id', profileId)
+    .order('start_date', { ascending: false });
+  if (error) {
+    if (nationalMissing(error)) return [];
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function fetchNationalTeam(id) {
+  const { data, error } = await supabase.from('national_team_history').select(NATIONAL_FIELDS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function saveNationalTeam(uid, n) {
+  const row = {
+    country_code: n.country_code,
+    team_name: n.team_name.trim(),
+    start_date: n.start_date,
+    end_date: n.is_current ? null : n.end_date || null,
+    is_current: n.is_current,
+    matches_played: n.matches_played ?? 0,
+    goals_scored: n.goals_scored ?? 0,
+  };
+  const { error } = n.id
+    ? await supabase.from('national_team_history').update(row).eq('id', n.id).eq('profile_id', uid)
+    : await supabase.from('national_team_history').insert({ profile_id: uid, ...row });
+  if (error) throw error;
+}
+
+export async function deleteNationalTeam(uid, id) {
+  const { error } = await supabase.from('national_team_history').delete().eq('id', id).eq('profile_id', uid);
+  if (error) throw error;
 }

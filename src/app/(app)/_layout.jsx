@@ -14,6 +14,8 @@ const SLIDE_UP = new Set([
   'progress/target',
   'schedule-match',
   'pro/index',
+  'profile/experience',
+  'profile/national-team',
 ]);
 
 // Signed-in app: the (tabs) shell, plus full-screen pages pushed over it

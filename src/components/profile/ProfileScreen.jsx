@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { BookmarkSimple, GearSix, Plus, ShareNetwork } from 'phosphor-react-native';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,11 +10,11 @@ import { PageTopbar, TransparentTopbar } from '@/components/navigation/Topbar';
 import CommentsSheet from '@/components/post/CommentsSheet';
 import MatchCard from '@/components/post/MatchCard';
 import PostSwitcher from '@/components/post/PostSwitcher';
-import CareerHistory from '@/components/profile/CareerHistory';
+import CareerHistory, { HistoryLegend, NationalTeamHistory } from '@/components/profile/CareerHistory';
 import InfoCard from '@/components/profile/InfoCard';
 import ProfessionalInfo from '@/components/profile/ProfessionalInfo';
 import ProfileHeader from '@/components/profile/ProfileHeader';
-import SeasonPicker from '@/components/profile/SeasonPicker';
+import MatchesSummary from '@/components/profile/MatchesSummary';
 import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import PillTabs from '@/components/ui/PillTabs';
@@ -23,7 +23,7 @@ import { chatMissing, openDm } from '@/lib/chat';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
 import { formatMatchDate } from '@/lib/format';
-import { fetchExperiences, fetchInfo, fetchMatches, saveProfile } from '@/lib/profile';
+import { fetchExperiences, fetchInfo, fetchMatches, fetchNationalTeams, saveProfile } from '@/lib/profile';
 import { seasonStartYear } from '@/lib/profile-format';
 import { colors, fonts } from '@/theme';
 import { isProfessional } from '@/utils/roles';
@@ -48,7 +48,8 @@ export default function ProfileScreen({ profileId, showBack = false }) {
   const posts = useProfilePosts(profileId, viewerId);
 
   const [tab, setTab] = useState('posts');
-  const [season, setSeason] = useState('all');
+  // null = not chosen yet: show the latest season with matches.
+  const [season, setSeason] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [commentsTarget, setCommentsTarget] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -80,12 +81,13 @@ export default function ProfileScreen({ profileId, showBack = false }) {
     return [...years].sort((a, b) => b - a);
   }, [matches.data]);
 
+  const activeSeason = season ?? seasons[0] ?? 'all';
   const shownMatches = useMemo(
     () =>
-      season === 'all'
+      activeSeason === 'all'
         ? (matches.data ?? [])
-        : (matches.data ?? []).filter((m) => seasonStartYear(m.date_of_game) === season),
-    [matches.data, season],
+        : (matches.data ?? []).filter((m) => seasonStartYear(m.date_of_game) === activeSeason),
+    [matches.data, activeSeason],
   );
 
   const refresh = async () => {
@@ -108,7 +110,25 @@ export default function ProfileScreen({ profileId, showBack = false }) {
     [router, profileId, viewerId],
   );
   const openComments = useCallback((postId, authorId) => setCommentsTarget({ postId, authorId }), []);
+  // Coming back to the profile (from Edit profile, or after logging a
+  // match): refresh the Info tab if it has been opened.
   const openEdit = () => router.push('/profile/edit');
+  const reloadInfo = info.reload;
+  const infoLoadedRef = useRef(false);
+  const infoReady = info.status === 'ready';
+  useEffect(() => {
+    infoLoadedRef.current = infoReady;
+  }, [infoReady]);
+  const firstFocusRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocusRef.current) {
+        firstFocusRef.current = false;
+        return;
+      }
+      if (infoLoadedRef.current) reloadInfo();
+    }, [reloadInfo]),
+  );
 
   // Open (or start) my chat with this person.
   const message = async () => {
@@ -269,9 +289,7 @@ export default function ProfileScreen({ profileId, showBack = false }) {
       />
       <PillTabs tabs={tabs} activeTab={currentTab} onTabChange={changeTab} />
       {currentTab === 'matches' && matches.data?.length ? (
-        <View style={styles.seasonRow}>
-          <SeasonPicker seasons={seasons} value={season} onChange={setSeason} />
-        </View>
+        <MatchesSummary matches={shownMatches} seasons={seasons} season={activeSeason} onChangeSeason={setSeason} />
       ) : null}
     </View>
   );
@@ -307,13 +325,10 @@ export default function ProfileScreen({ profileId, showBack = false }) {
           <ProfessionalInfo profile={profile} experiences={info.data.experiences} isMe={isMe} onEdit={openEdit} />
         ) : (
           <>
-            <InfoCard
-              info={info.data.info}
-              location={[profile.city, profile.country].filter(Boolean).join(', ') || null}
-              isMe={isMe}
-              onAddInfo={openEdit}
-            />
-            <CareerHistory club={profile.club} experiences={info.data.experiences} />
+            <InfoCard info={info.data.info} country={profile.country} isMe={isMe} onAddInfo={openEdit} />
+            <CareerHistory club={profile.club} experiences={info.data.experiences} matches={info.data.matches} />
+            {info.data.nationalTeams.length || isMe ? <NationalTeamHistory teams={info.data.nationalTeams} /> : null}
+            <HistoryLegend />
           </>
         )}
       </View>
@@ -365,11 +380,15 @@ export default function ProfileScreen({ profileId, showBack = false }) {
 }
 
 async function loadInfo(profileId, role) {
-  const [info, experiences] = await Promise.all([
-    isProfessional(role) ? null : fetchInfo(profileId),
+  const pro = isProfessional(role);
+  const [info, experiences, nationalTeams, matches] = await Promise.all([
+    pro ? null : fetchInfo(profileId),
     fetchExperiences(profileId),
+    pro ? [] : fetchNationalTeams(profileId),
+    // Logged matches count towards the current club in Career history.
+    pro ? [] : fetchMatches(profileId).catch(() => []),
   ]);
-  return { info, experiences };
+  return { info, experiences, nationalTeams, matches };
 }
 
 // Loads on first `ensure()` (when its tab opens), `reload()` on pull-to-refresh.
@@ -431,7 +450,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.neutral.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
   item: { paddingHorizontal: 16, paddingBottom: 8 },
-  seasonRow: { paddingHorizontal: 16, paddingBottom: 8, zIndex: 1 },
   infoTab: { paddingHorizontal: 16, gap: 24 },
   footer: { paddingVertical: 16 },
   loading: { paddingVertical: 32 },

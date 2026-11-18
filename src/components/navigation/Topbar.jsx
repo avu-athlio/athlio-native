@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, Bell, ChatCircle } from 'phosphor-react-native';
 import { useCallback } from 'react';
@@ -6,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IconButton from '@/components/ui/IconButton';
+import Logo from '@/components/ui/Logo';
 import { useUser } from '@/context/UserContext';
 import { fetchUnreadMessageCount } from '@/lib/chat';
 import { fetchUnreadCount } from '@/lib/notifications';
@@ -14,7 +14,6 @@ import { colors, fonts } from '@/theme';
 // Ports of the web Topbar variants. On web one component switched on the URL;
 // here each screen renders the bar it needs.
 
-const logo = require('@/assets/logos/main-logo.svg');
 
 // Home: logo on the left, notifications + messages with badges on the right.
 // The unread notification count refreshes whenever the screen comes into view
@@ -47,7 +46,7 @@ export function MainTopbar({ showBack = false, showActions = true }) {
         {showBack ? (
           <IconButton size="large" icon={ArrowLeft} onPress={() => router.back()} accessibilityLabel="Back" />
         ) : null}
-        <Image source={logo} style={styles.logo} contentFit="contain" accessibilityLabel="Athlio" />
+        <Logo variant="main" height={18} />
       </View>
       {showActions ? (
         <View style={styles.icons}>
@@ -156,7 +155,6 @@ const styles = StyleSheet.create({
   },
   flex: { flex: 1 },
   leftWithBack: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: { width: 61, height: 18 },
   icons: { flexDirection: 'row', gap: 4 },
   badgeIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   badge: {

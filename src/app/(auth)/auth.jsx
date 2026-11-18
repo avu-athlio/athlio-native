@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '@/components/ui/Button';
+import Logo from '@/components/ui/Logo';
 import {
   ensureProfileRow,
   formatAuthError,
@@ -25,10 +26,9 @@ import {
   signInWithGoogle,
 } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { colors, fonts, radius, type } from '@/theme';
+import { colors, fonts, type } from '@/theme';
 import { validateEmail } from '@/utils/validate';
 
-const logo = require('@/assets/logos/main-logo-small.svg');
 const googleIcon = require('@/assets/logos/Google.svg');
 
 // Sign-in and sign-up. On success we only create the profile row: the root
@@ -153,9 +153,7 @@ export default function Auth() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive">
-          <View style={styles.logoBox}>
-            <Image source={logo} style={styles.logo} contentFit="contain" />
-          </View>
+          <Logo variant="small" height={48} style={styles.logo} />
 
           <View style={styles.header}>
             <Text style={[type['heading-5xl-italic'], styles.title]}>
@@ -314,16 +312,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.neutral.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 28 },
-  logoBox: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 26,
-  },
-  logo: { width: 28, height: 28 },
+  logo: { marginBottom: 26 },
   header: { marginBottom: 26, alignItems: 'center' },
   title: { color: colors.black, textAlign: 'center', letterSpacing: -1.5, lineHeight: 44 },
   subtitle: {

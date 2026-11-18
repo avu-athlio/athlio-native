@@ -5,11 +5,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '@/components/ui/Button';
+import Logo from '@/components/ui/Logo';
 import { markIntroSeen } from '@/lib/intro';
 import { colors, fonts, type } from '@/theme';
 
 const hero = require('@/assets/images/preboarding-hero.jpg');
-const logo = require('@/assets/logos/main-logo-small.svg');
 
 export default function Intro() {
   function go(mode) {
@@ -28,9 +28,7 @@ export default function Intro() {
 
       <SafeAreaView edges={['bottom']} style={styles.bottom}>
         <View style={styles.content}>
-          <View style={styles.logoBox}>
-            <Image source={logo} style={styles.logo} contentFit="contain" />
-          </View>
+          <Logo variant="small" height={53} />
 
           <Text style={[type['heading-6xl-italic'], styles.headline]}>
             Expand your{'\n'}network
@@ -59,15 +57,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.black },
   bottom: { width: '100%' },
   content: { gap: 20, paddingHorizontal: 16, paddingBottom: 20 },
-  logoBox: {
-    width: 53,
-    height: 53,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: { width: 34, height: 34 },
   headline: { color: colors.white },
   actions: { flexDirection: 'row', gap: 12 },
   flex: { flex: 1 },
