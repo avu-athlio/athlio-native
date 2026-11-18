@@ -239,10 +239,22 @@ const toValue = (y, m0, d) => `${y}-${pad2(m0 + 1)}-${pad2(Math.min(d, daysIn(m0
  * Date field → sheet with day / month / year wheels. value: "YYYY-MM-DD".
  * Matches can't be in the future, so years end at this year.
  */
-export function DateField({ label, required, value, onChange, error, yearsBack = 10, sheetTitle = 'Date of game' }) {
+export function DateField({
+  label,
+  required,
+  value,
+  onChange,
+  error,
+  yearsBack = 10,
+  yearsAhead = 0,
+  allowFuture = false,
+  placeholder = 'dd/mm/yyyy',
+  sheetTitle = 'Date of game',
+  style,
+}) {
   const [open, setOpen] = useState(false);
   const now = new Date();
-  const years = Array.from({ length: yearsBack + 1 }, (_, i) => now.getFullYear() - yearsBack + i);
+  const years = Array.from({ length: yearsBack + yearsAhead + 1 }, (_, i) => now.getFullYear() - yearsBack + i);
   const init = value ? value.split('-').map(Number) : [now.getFullYear(), now.getMonth() + 1, now.getDate()];
   const [sel, setSel] = useState({ y: init[0], m: init[1] - 1, d: init[2] });
 
@@ -250,15 +262,15 @@ export function DateField({ label, required, value, onChange, error, yearsBack =
   const days = Array.from({ length: dayCount }, (_, i) => i + 1);
   const display = value ? value.split('-').reverse().join('/') : '';
   const picked = toValue(sel.y, sel.m, sel.d);
-  const future = new Date(`${picked}T00:00:00`) > now;
+  const future = !allowFuture && new Date(`${picked}T00:00:00`) > now;
 
   return (
-    <View>
+    <View style={style}>
       <FieldBox
         label={label}
         required={required}
         value={display}
-        placeholder="dd/mm/yyyy"
+        placeholder={placeholder}
         icon={CalendarBlank}
         onPress={() => setOpen(true)}
         error={error}

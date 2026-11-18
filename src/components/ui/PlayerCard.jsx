@@ -12,13 +12,15 @@ import { isProfessional } from '@/utils/roles';
 
 // Port of the web PlayerCard ("club" info type): avatar, name + positions,
 // club logo · club · country, and Follow / ✓ on the right.
-export default function PlayerCard({ profile, isFollowing = false, onFollow, onPress, showAction = true }) {
+// detail — what follows the club name: "country" (default) or "league" (Search).
+export default function PlayerCard({ profile, isFollowing = false, onFollow, onPress, showAction = true, detail = 'country' }) {
   if (!profile) return null;
 
   const pro = isProfessional(profile.role);
   const positions = positionAbbrs(profile.position).slice(0, 2);
   const club = profile.club;
   const name = profile.full_name || profile.username || '';
+  const extra = detail === 'league' ? club?.league : club?.country;
 
   return (
     <Pressable
@@ -45,11 +47,11 @@ export default function PlayerCard({ profile, isFollowing = false, onFollow, onP
             <Text style={styles.subText} numberOfLines={1}>
               {club.name}
             </Text>
-            {club.country ? (
+            {extra ? (
               <>
                 <View style={styles.dot} />
                 <Text style={styles.subText} numberOfLines={1}>
-                  {club.country}
+                  {extra}
                 </Text>
               </>
             ) : null}

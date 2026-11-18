@@ -35,5 +35,16 @@ export function positionAbbrs(position) {
   const list = Array.isArray(position)
     ? position
     : String(position).replace(/[[\]"]/g, '').split(',');
-  return list.map((p) => toPositionAbbr(String(p).trim())).filter(Boolean);
+  // De-duplicated: "st" and "striker" are both ST (and badges are keyed by it).
+  return [...new Set(list.map((p) => toPositionAbbr(String(p).trim())).filter(Boolean))];
+}
+
+// Football positions offered in the search filters, in pitch order.
+export const FILTER_POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'LM', 'RM', 'CAM', 'RW', 'LW', 'ST'];
+
+// Every stored spelling that means `abbr` ("CB" → cb, cb_l, centre back, …),
+// for array-overlap filters on profiles.position.
+export function positionKeysFor(abbr) {
+  const keys = Object.keys(POSITION_MAP).filter((k) => POSITION_MAP[k] === abbr);
+  return [...new Set([...keys, abbr.toLowerCase(), abbr])];
 }

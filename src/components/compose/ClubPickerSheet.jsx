@@ -24,7 +24,17 @@ import { colors, fonts } from '@/theme';
  * "Add … manually" opens an inline field (the web used window.prompt).
  * value / onChange: { id?, name, logo_url? } | null.
  */
-export default function ClubPickerSheet({ visible, title, manualLabel, searchPlaceholder, country, value, onChange, onClose }) {
+export default function ClubPickerSheet({
+  visible,
+  title,
+  manualLabel,
+  searchPlaceholder,
+  country,
+  value,
+  onChange,
+  onClose,
+  allowManual = true,
+}) {
   const { height } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [clubs, setClubs] = useState([]);
@@ -123,12 +133,14 @@ export default function ClubPickerSheet({ visible, title, manualLabel, searchPla
                 )
               }
               ListFooterComponent={
+                allowManual ? (
                 <Pressable accessibilityRole="button" onPress={() => setManual(query)} style={styles.addManual}>
                   <View style={styles.addIcon}>
                     <Plus size={24} color={colors.primary.default} />
                   </View>
                   <Text style={styles.addText}>{manualLabel}</Text>
                 </Pressable>
+                ) : null
               }
             />
           </>

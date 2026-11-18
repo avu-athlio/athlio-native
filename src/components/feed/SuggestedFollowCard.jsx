@@ -7,11 +7,12 @@ import { positionAbbrs } from '@/utils/positions';
 
 // Port of the web SuggestedFollowCard: photo, up to two position badges,
 // first name + LAST NAME, club. Tapping opens the profile.
-export default function SuggestedFollowCard({ name, avatarUrl, verified = false, position, clubName, onPress }) {
+export default function SuggestedFollowCard({ name, avatarUrl, verified = false, position, role, clubName, onPress }) {
   const parts = (name || '').trim().split(' ');
   const firstName = parts[0] || '';
   const lastName = parts.slice(1).join(' ');
-  const badges = positionAbbrs(position).slice(0, 2);
+  // Professionals show their role (SCOUT, AGENT…) instead of positions.
+  const badges = role ? [role] : positionAbbrs(position).slice(0, 2);
 
   return (
     <Pressable

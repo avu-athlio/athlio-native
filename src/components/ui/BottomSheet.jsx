@@ -7,17 +7,17 @@ import { colors, fonts } from '@/theme';
 /**
  * Slide-up sheet over a dimmed backdrop. Tapping the backdrop or ✕ closes it.
  * variant — "default" (grey, title + ✕)
- *         | "popover" (Figma popover: white, bordered header with ✕, padded body, bordered `footer`)
+ *         | "popover" (Figma popover: white — or `grey` — bordered header with ✕, padded body, bordered `footer`)
  *         | "handle"  (Figma dropdown: white, grab handle, left title, no ✕; `footer` under the body)
  */
-export default function BottomSheet({ visible, onClose, title, children, footer = null, variant = 'default' }) {
+export default function BottomSheet({ visible, onClose, title, children, footer = null, variant = 'default', grey = false }) {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 16);
 
   let sheet;
   if (variant === 'popover') {
     sheet = (
-      <View style={[styles.popover, !footer && { paddingBottom: bottom }]}>
+      <View style={[styles.popover, grey && styles.grey, !footer && { paddingBottom: bottom }]}>
         <View style={styles.popoverHeader}>
           <Text style={styles.popoverTitle} accessibilityRole="header">
             {title}
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     overflow: 'hidden',
   },
+  grey: { backgroundColor: colors.neutral.bg },
   popoverHeader: {
     flexDirection: 'row',
     alignItems: 'center',
