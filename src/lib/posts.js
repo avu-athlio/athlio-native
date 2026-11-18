@@ -34,16 +34,23 @@ export async function uploadPostImages(uid, images) {
 }
 
 // type: 'basic' | 'match'. Uploads `images` first.
-export async function createPost({ uid, type = 'basic', content, images = [], matchId = null }) {
+export async function createPost({ uid, type = 'basic', content, images = [], matchId = null, trainingId = null }) {
   const urls = images.length ? await uploadPostImages(uid, images) : [];
-  const { error } = await supabase.from('posts').insert({
+  const row = {
     author_id: uid,
     type,
     content: content?.trim() || null,
     media: urls[0] ?? null,
     media_urls: urls,
     match_id: matchId,
-  });
+  };
+  if (trainingId) row.training_session_id = trainingId;
+  const { error } = await supabase.from('posts').insert(row);
+  // Missing column (PGRST204) or old type check (23514): the training-posts
+  // migration hasn't been run on this database yet.
+  if (error && trainingId && ['PGRST204', '23514', '42703'].includes(error.code)) {
+    throw new Error('Training posts need a database update (supabase/migrations/20261118_posts_training.sql).');
+  }
   if (error) throw error;
 }
 

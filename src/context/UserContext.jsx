@@ -73,7 +73,7 @@ export function UserProvider({ children }) {
 
   const canPost = (postType) => {
     if (!user) return false;
-    if (postType === 'match' || postType === 'activity') return !isScout;
+    if (postType === 'match' || postType === 'training' || postType === 'activity') return !isScout;
     return true;
   };
 

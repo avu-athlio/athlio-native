@@ -2,7 +2,9 @@ import { memo } from 'react';
 
 import BasicPost from '@/components/post/BasicPost';
 import MatchPost from '@/components/post/MatchPost';
+import TrainingPost from '@/components/post/TrainingPost';
 import { formatMatchDate, formatPostDate } from '@/lib/format';
+import { readTraining } from '@/lib/trainings';
 
 // Maps a joined `posts` row to BasicPost / MatchPost. Memoized so a like on one
 // post doesn't re-render the others — pass stable (useCallback) handlers.
@@ -49,6 +51,14 @@ function PostSwitcher({ post, liked, showFollow, onToggleLike, onToggleFollow, o
       redCards: Number(m.red_cards) || 0,
     };
     return <MatchPost header={header} actions={actions} content={post.content} mediaUrls={mediaUrls} match={match} />;
+  }
+
+  // `training` is null if the session can't be read (e.g. the training-posts
+  // migration isn't run yet); then it shows as a plain post.
+  if (post.type === 'training' && post.training) {
+    return (
+      <TrainingPost header={header} actions={actions} content={post.content} mediaUrls={mediaUrls} training={readTraining(post.training)} />
+    );
   }
 
   return <BasicPost header={header} actions={actions} content={post.content} mediaUrls={mediaUrls} />;

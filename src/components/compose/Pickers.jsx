@@ -239,7 +239,7 @@ const toValue = (y, m0, d) => `${y}-${pad2(m0 + 1)}-${pad2(Math.min(d, daysIn(m0
  * Date field → sheet with day / month / year wheels. value: "YYYY-MM-DD".
  * Matches can't be in the future, so years end at this year.
  */
-export function DateField({ label, required, value, onChange, error, yearsBack = 10 }) {
+export function DateField({ label, required, value, onChange, error, yearsBack = 10, sheetTitle = 'Date of game' }) {
   const [open, setOpen] = useState(false);
   const now = new Date();
   const years = Array.from({ length: yearsBack + 1 }, (_, i) => now.getFullYear() - yearsBack + i);
@@ -263,7 +263,7 @@ export function DateField({ label, required, value, onChange, error, yearsBack =
         onPress={() => setOpen(true)}
         error={error}
       />
-      <BottomSheet visible={open} onClose={() => setOpen(false)} title="Date of game">
+      <BottomSheet visible={open} onClose={() => setOpen(false)} title={sheetTitle}>
         <View style={styles.wheels}>
           <Drum
             key={`d-${dayCount}-${open}`}
@@ -290,6 +290,65 @@ export function DateField({ label, required, value, onChange, error, yearsBack =
           disabled={future}
           onPress={() => {
             onChange(picked);
+            setOpen(false);
+          }}
+          style={styles.sheetButton}
+        />
+      </BottomSheet>
+    </View>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTE_STEPS = Array.from({ length: 12 }, (_, i) => i * 5);
+
+/**
+ * Figma time input: grey box showing "Start time *" until set, then "HH:MM".
+ * Opens hour / minute wheels (5-minute steps). value: "HH:MM" | "".
+ */
+export function TimeField({ label, required, value, onChange, error, style }) {
+  const [open, setOpen] = useState(false);
+  const [h, m] = value ? value.split(':').map(Number) : [18, 0];
+  const [sel, setSel] = useState({ h, m: Math.round(m / 5) % 12 });
+  return (
+    <View style={style}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}${required ? ', required' : ''}: ${value || 'not set'}`}
+        onPress={() => {
+          setSel({ h, m: Math.round(m / 5) % 12 });
+          setOpen(true);
+        }}
+        style={({ pressed }) => [styles.timeField, error && styles.fieldError, pressed && styles.timePressed]}>
+        {value ? (
+          <Text style={styles.fieldValue}>{value}</Text>
+        ) : (
+          <Text style={[styles.fieldValue, styles.timePlaceholder]} numberOfLines={1}>
+            {label}
+            {required ? <Text style={styles.required}> *</Text> : null}
+          </Text>
+        )}
+        <CaretDown size={18} color={colors.neutral[700]} />
+      </Pressable>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <BottomSheet visible={open} onClose={() => setOpen(false)} title={label}>
+        <View style={styles.wheels}>
+          <Drum key={`h-${open}`} items={HOURS} index={sel.h} onSelect={(i) => setSel((s) => ({ ...s, h: i }))} format={pad2} label="Hour" />
+          <Drum
+            key={`min-${open}`}
+            items={MINUTE_STEPS}
+            index={sel.m}
+            onSelect={(i) => setSel((s) => ({ ...s, m: i }))}
+            format={pad2}
+            label="Minutes"
+          />
+        </View>
+        <Button
+          size="big"
+          type="primary"
+          label="Choose"
+          onPress={() => {
+            onChange(`${pad2(sel.h)}:${pad2(MINUTE_STEPS[sel.m])}`);
             setOpen(false);
           }}
           style={styles.sheetButton}
@@ -367,6 +426,19 @@ const styles = StyleSheet.create({
   wheelFooter: { paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.neutral[200] },
 
   wheels: { flexDirection: 'row', gap: 16 },
+  timeField: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: colors.neutral[100],
+  },
+  timePressed: { backgroundColor: colors.neutral[200] },
+  timePlaceholder: { color: colors.neutral[700] },
   futureNote: { fontFamily: fonts.regular, fontSize: 12, color: colors.negative.default, textAlign: 'center', marginTop: 8 },
   sheetButton: { marginTop: 16 },
 });

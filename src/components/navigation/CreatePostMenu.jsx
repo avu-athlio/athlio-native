@@ -8,11 +8,11 @@ import { colors, fonts } from '@/theme';
 
 // Port of the web AddPostModal + PostTypePicker: a small white card that floats
 // just above the tab bar (no dimmed backdrop). Tapping outside closes it.
-// Professionals don't see "Match"; "Training" isn't built yet.
+// Scouts don't post matches or trainings.
 const TYPES = [
   { key: 'post', title: 'Post', icon: PlusCircle, disabled: false },
   { key: 'match', title: 'Match', icon: SoccerBall, disabled: false },
-  { key: 'training', title: 'Training', icon: Sneaker, disabled: true },
+  { key: 'training', title: 'Training', icon: Sneaker, disabled: false },
 ];
 
 const IN_MS = 180;
@@ -48,11 +48,12 @@ export default function CreatePostMenu({ visible, onClose, bottom }) {
     };
   }, [visible, progress]);
 
-  const visibleTypes = isScout ? TYPES.filter((t) => t.key !== 'match') : TYPES;
+  const visibleTypes = isScout ? TYPES.filter((t) => t.key === 'post') : TYPES;
 
   const choose = (key) => {
     onClose();
     if (key === 'match') router.push('/post-about-match');
+    else if (key === 'training') router.push('/post-about-training');
     else router.push({ pathname: '/add-post', params: { type: key } });
   };
 

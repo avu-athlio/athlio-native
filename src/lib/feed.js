@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 
 export const FEED_PAGE_SIZE = 20;
 
-const POST_SELECT = `
+const POST_FIELDS = `
   id,
   type,
   content,
@@ -34,6 +34,17 @@ const POST_SELECT = `
   )
 `;
 
+// Training posts need posts.training_session_id (supabase/migrations/
+// 20261118_posts_training.sql). Until that's run, the join makes PostgREST
+// reject the whole query, so we drop it and remember not to ask again.
+const TRAINING_JOIN = `,
+  training:training_session_id (
+    id, type, session_date, duration_minutes, rating, notes
+  )
+`;
+let trainingJoinAvailable = true;
+const isMissingRelation = (e) => ['PGRST200', '42703', 'PGRST100'].includes(e?.code);
+
 export const COMMENT_SELECT = `
   id,
   content,
@@ -59,15 +70,22 @@ export async function fetchFollowingIds(userId) {
 
 // Newest first. Pass `before` (created_at of the last loaded post) for the next page.
 export async function fetchFeedPage(authorIds, before = null) {
-  let query = supabase
-    .from('posts')
-    .select(POST_SELECT)
-    .in('author_id', authorIds)
-    .order('created_at', { ascending: false })
-    .limit(FEED_PAGE_SIZE);
-  if (before) query = query.lt('created_at', before);
+  const run = (withTraining) => {
+    let query = supabase
+      .from('posts')
+      .select(withTraining ? POST_FIELDS + TRAINING_JOIN : POST_FIELDS)
+      .in('author_id', authorIds)
+      .order('created_at', { ascending: false })
+      .limit(FEED_PAGE_SIZE);
+    if (before) query = query.lt('created_at', before);
+    return query;
+  };
 
-  const { data, error } = await query;
+  let { data, error } = await run(trainingJoinAvailable);
+  if (error && trainingJoinAvailable && isMissingRelation(error)) {
+    trainingJoinAvailable = false;
+    ({ data, error } = await run(false));
+  }
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }

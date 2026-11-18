@@ -5,7 +5,13 @@ import { colors } from '@/theme';
 // Composer entry screens slide up from the bottom and back down when closed
 // (swipe down also closes them on iOS). Steps inside a flow, like
 // post-about-match/[matchId], keep the normal sideways push.
-const SLIDE_UP = new Set(['add-post', 'add-match', 'post-about-match/index']);
+const SLIDE_UP = new Set([
+  'add-post',
+  'add-match',
+  'add-training',
+  'post-about-match/index',
+  'post-about-training/index',
+]);
 
 // Signed-in app: the (tabs) shell, plus full-screen pages pushed over it
 // (notifications, chat, add-post, add-match, profile/[id]) without a tab bar.

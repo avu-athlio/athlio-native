@@ -46,23 +46,23 @@ export default function MatchPostEditor({ card, images, onImagesChange, caption,
 }
 
 // Figma "Add text" caption box: white, label notched into the top border.
-export function CaptionField({ value, onChangeText, minHeight = 149 }) {
+export function CaptionField({ value, onChangeText, minHeight = 149, label = 'Add text', placeholder = 'Add a caption...' }) {
   const [focused, setFocused] = useState(false);
   return (
     <View>
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Add a caption..."
+        placeholder={placeholder}
         placeholderTextColor={colors.neutral[700]}
         multiline
         textAlignVertical="top"
-        accessibilityLabel="Add text"
+        accessibilityLabel={label}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={[styles.textarea, { minHeight }, focused && styles.textareaFocused]}
       />
-      <NotchLabel label="Add text" color={value ? colors.neutral[600] : colors.black} />
+      <NotchLabel label={label} color={value ? colors.neutral[600] : colors.black} />
     </View>
   );
 }
