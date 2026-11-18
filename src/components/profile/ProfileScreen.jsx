@@ -19,6 +19,7 @@ import Button from '@/components/ui/Button';
 import IconButton from '@/components/ui/IconButton';
 import PillTabs from '@/components/ui/PillTabs';
 import { useUser } from '@/context/UserContext';
+import { chatMissing, openDm } from '@/lib/chat';
 import { useProfile } from '@/hooks/useProfile';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
 import { formatMatchDate } from '@/lib/format';
@@ -108,6 +109,16 @@ export default function ProfileScreen({ profileId, showBack = false }) {
   );
   const openComments = useCallback((postId, authorId) => setCommentsTarget({ postId, authorId }), []);
   const openEdit = () => router.push('/profile/edit');
+
+  // Open (or start) my chat with this person.
+  const message = async () => {
+    try {
+      const id = await openDm(profileId);
+      router.push({ pathname: '/chat/[id]', params: { id } });
+    } catch (e) {
+      Alert.alert('Could not open the chat', chatMissing(e) ? 'Chat isn’t set up on the server yet.' : e?.message ?? 'Try again.');
+    }
+  };
 
   const share = () => {
     const name = profile?.full_name || profile?.username || 'this athlete';
@@ -250,7 +261,7 @@ export default function ProfileScreen({ profileId, showBack = false }) {
         following={page.following}
         followBusy={page.followBusy}
         onToggleFollow={page.toggleFollow}
-        onMessage={() => router.push('/chat')}
+        onMessage={message}
         onEdit={openEdit}
         onShare={share}
         onAvatarPress={onAvatarPress}

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IconButton from '@/components/ui/IconButton';
 import { useUser } from '@/context/UserContext';
+import { fetchUnreadMessageCount } from '@/lib/chat';
 import { fetchUnreadCount } from '@/lib/notifications';
 import { colors, fonts } from '@/theme';
 
@@ -29,6 +30,10 @@ export function MainTopbar({ showBack = false, showActions = true }) {
       let cancelled = false;
       fetchUnreadCount(uid)
         .then((n) => !cancelled && setCounts((c) => (c.notifications === n ? c : { ...c, notifications: n })))
+        .catch(() => {});
+      // Unread chat messages (muted chats excluded). Fails quietly until chat is set up.
+      fetchUnreadMessageCount()
+        .then((n) => !cancelled && setCounts((c) => (c.messages === n ? c : { ...c, messages: n })))
         .catch(() => {});
       return () => {
         cancelled = true;

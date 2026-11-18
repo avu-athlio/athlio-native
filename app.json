@@ -40,7 +40,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Athlio uses your photos to set your profile picture and share highlights.",
-          "cameraPermission": false,
+          "cameraPermission": "Athlio uses your camera to take photos you send in chats.",
           "microphonePermission": false
         }
       ],
