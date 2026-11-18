@@ -52,7 +52,7 @@ export default function CreatePostMenu({ visible, onClose, bottom }) {
 
   const choose = (key) => {
     onClose();
-    if (key === 'match') router.push('/add-match');
+    if (key === 'match') router.push('/post-about-match');
     else router.push({ pathname: '/add-post', params: { type: key } });
   };
 

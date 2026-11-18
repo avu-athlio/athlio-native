@@ -6,7 +6,7 @@ import { colors } from '@/theme';
  * Ported from the web IconButton.
  * size — "large" | "medium" | "small"
  * type — "primary" | "neutral" | "subtle"
- * icon — phosphor-react-native component
+ * icon — phosphor-react-native component (`weight` is passed through, e.g. "fill")
  */
 export default function IconButton({
   size = 'medium',
@@ -14,6 +14,7 @@ export default function IconButton({
   icon: Icon,
   onPress,
   color,
+  weight,
   disabled = false,
   accessibilityLabel,
   style,
@@ -36,7 +37,7 @@ export default function IconButton({
         pressed && styles.pressed,
         style,
       ]}>
-      {Icon ? <Icon size={s.icon} color={color ?? v.color} /> : null}
+      {Icon ? <Icon size={s.icon} color={color ?? v.color} weight={weight} /> : null}
     </Pressable>
   );
 }

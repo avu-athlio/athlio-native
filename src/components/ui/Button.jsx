@@ -5,7 +5,7 @@ import { colors, fonts, radius } from '@/theme';
 /**
  * Ported from the web Button.
  * size  — "big" (44, full width) | "medium" (44) | "small" (36) | "xsmall" (32)
- * type  — "primary" | "outlined" | "secondary" | "subtle" | "gray" | "white"
+ * type  — "primary" | "outlined" | "secondary" | "subtle" | "gray" | "white" | "following"
  * leadingIcon / trailingIcon — phosphor-react-native component
  */
 export default function Button({
@@ -98,6 +98,10 @@ const VARIANTS = {
   white: {
     container: { backgroundColor: 'rgba(255,255,255,0.2)' },
     text: { color: colors.white },
+  },
+  following: {
+    container: { backgroundColor: colors.neutral[100] },
+    text: { color: colors.primary.default },
   },
 };
 VARIANTS.outline = VARIANTS.outlined;

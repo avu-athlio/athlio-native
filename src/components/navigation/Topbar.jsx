@@ -75,9 +75,34 @@ export function PageTopbar({ title, backIcon = ArrowLeft, onBack, right = null, 
   );
 }
 
-function TopbarFrame({ children }) {
+// Profile pages: no background, white icons, floats over the profile header.
+export function TransparentTopbar({ showBack = true, right = null }) {
+  const router = useRouter();
+
+  return (
+    <TopbarFrame style={styles.transparent}>
+      <View style={styles.side}>
+        {showBack ? (
+          <IconButton
+            size="small"
+            icon={ArrowLeft}
+            color={colors.white}
+            onPress={() => router.back()}
+            accessibilityLabel="Back"
+          />
+        ) : null}
+      </View>
+      <View style={styles.transparentRight}>{right}</View>
+    </TopbarFrame>
+  );
+}
+
+// Height of the bar below the status bar, for content that sits under a TransparentTopbar.
+export const TOPBAR_CONTENT_HEIGHT = 52;
+
+function TopbarFrame({ children, style }) {
   const insets = useSafeAreaInsets();
-  return <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>{children}</View>;
+  return <View style={[styles.bar, { paddingTop: insets.top + 8 }, style]}>{children}</View>;
 }
 
 function BadgeIcon({ icon: Icon, label, badge, onPress }) {
@@ -127,6 +152,8 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: fonts.semibold, fontSize: 8, color: colors.white },
   side: { width: 36, height: 36, justifyContent: 'center' },
   sideRight: { alignItems: 'flex-end' },
+  transparent: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: 'transparent' },
+  transparentRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pageTitle: {
     flex: 1,
     marginHorizontal: 8,

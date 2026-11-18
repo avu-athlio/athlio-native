@@ -1,35 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { View } from 'react-native';
 
-import Placeholder from '@/components/Placeholder';
-import { PageTopbar } from '@/components/navigation/Topbar';
-import { getProfile } from '@/lib/profiles';
-import { colors } from '@/theme';
+import ProfileScreen from '@/components/profile/ProfileScreen';
 
-// TODO: port pages/ProfileOther.jsx
-export default function ProfileOther() {
+// Someone else's profile (web /profile/:id), pushed over the tabs.
+export default function OtherProfile() {
   const { id } = useLocalSearchParams();
-  const [profile, setProfile] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    getProfile(id)
-      .then((p) => alive && setProfile(p))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.neutral.bg }}>
-      <PageTopbar />
-      <Placeholder
-        edges={['bottom']}
-        title={profile?.full_name || profile?.username || 'Profile'}
-        subtitle={profile?.username ? `@${profile.username} — full profile coming soon` : 'Coming soon'}
-      />
-    </View>
-  );
+  return <ProfileScreen profileId={Array.isArray(id) ? id[0] : id} showBack />;
 }
