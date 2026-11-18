@@ -1,0 +1,30 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="28.1562" height="34" viewBox="0 0 28.1562 34" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Mask group">
+<mask id="mask0_0_484" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="29" height="34">
+<g id="Rectangle 482">
+<use xlink:href="#stroke0_0_484" fill="#D9D9D9"/>
+<use xlink:href="#stroke0_0_484" fill="#222F8D"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_484)">
+<path id="Vector 19" d="M-9.03125 3.17732C-8.71846 3.45738 -8.40567 3.73744 -3.14677 8.346C2.11213 12.9546 12.3077 21.8832 17.5928 26.5201C22.878 31.1571 22.9438 31.2319 23.4667 31.7179C23.9896 32.2039 24.9675 33.0988 26.0051 34.0568" stroke-width="5.44349" stroke-linecap="round" stroke="url(#paint0_linear_0_484)"/>
+<path id="Vector 20" d="M-3.8847 1.59375C-3.57191 1.87381 -3.25912 2.15387 1.99978 6.76243C7.25868 11.371 17.4542 20.2996 22.7394 24.9366C28.0245 29.5735 28.0904 29.6483 28.6133 30.1343C29.1361 30.6203 30.1141 31.5152 31.1516 32.4732" stroke-width="1.97945" stroke-linecap="round" stroke="url(#paint1_linear_0_484)"/>
+<path id="Vector 21" d="M8.4869 -1.59375C8.76434 -1.35767 9.04179 -1.1216 13.7065 2.76319C18.3711 6.64797 27.4146 14.1743 32.1026 18.083C36.7906 21.9918 36.849 22.0548 37.3128 22.4645C37.7766 22.8741 38.644 23.6285 39.5643 24.436" stroke-width="3.46404" stroke-linecap="round" stroke="url(#paint2_linear_0_484)"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_484" x1="-4.77543" y1="5.50317" x2="24.4215" y2="32.6217" gradientUnits="userSpaceOnUse">
+<stop stop-color="#2A3AAD"/>
+<stop offset="1" stop-color="#1C2773"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_484" x1="-0.123743" y1="4.06807" x2="31.1516" y2="31.5824" gradientUnits="userSpaceOnUse">
+<stop stop-color="#253398"/>
+<stop offset="1" stop-color="#1B2570"/>
+</linearGradient>
+<linearGradient id="paint2_linear_0_484" x1="22.7085" y1="-1.00809" x2="34.1513" y2="21.1781" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1B256F"/>
+<stop offset="1" stop-color="#2737A5"/>
+</linearGradient>
+<path id="stroke0_0_484" d="M0 1.0625C0 0.475698 0.475697 0 1.0625 0H27.0937C27.6805 0 28.1562 0.475697 28.1562 1.0625L28.1562 22.0253C28.1562 22.3447 28.0125 22.6472 27.7649 22.849L14.7492 33.4532C14.3585 33.7716 13.7978 33.7716 13.407 33.4532L0.39139 22.849C0.143731 22.6472 0 22.3447 0 22.0253V1.0625Z"/>
+</defs>
+</svg>

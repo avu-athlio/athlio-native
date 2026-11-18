@@ -20,6 +20,38 @@ export const ACTIVITIES = {
 export const FOCUS_OPTIONS = ['Technical', 'Tactical', 'Fitness', 'Strength', 'Recovery'];
 
 const SELECT = 'id, profile_id, session_date, type, status, duration_minutes, rating, notes, created_at';
+// start_time comes with supabase/migrations/20261118_planning_skills.sql.
+// Until that has run, queries fall back to SELECT.
+let hasStartTime = true;
+const missingColumn = (e) => e?.code === '42703' || e?.code === 'PGRST204';
+
+/** Runs `build(select)` with start_time, retrying without it on an old schema. */
+export async function selectSessions(build) {
+  if (hasStartTime) {
+    const res = await build(`${SELECT}, start_time`);
+    if (!missingColumn(res.error)) return res;
+    hasStartTime = false;
+  }
+  return build(SELECT);
+}
+
+async function writeSession(write, row) {
+  if (hasStartTime) {
+    const res = await write(row);
+    if (!missingColumn(res.error)) return res;
+    hasStartTime = false;
+  }
+  const { start_time: _drop, ...rest } = row;
+  return write(rest);
+}
+
+const todayKey = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
+// A session dated after today can only be planned.
+export const isFutureDate = (date) => !!date && date > todayKey();
 const SEP = ' - ';
 
 // Minutes between "HH:MM" times; an end before the start means past midnight.
@@ -52,6 +84,8 @@ export function readTraining(row) {
   }
   return {
     id: row.id,
+    status: row.status === 'planned' ? 'planned' : 'logged',
+    startTime: row.start_time ? String(row.start_time).slice(0, 5) : null,
     type: row.type,
     label: TRAINING_LABELS[row.type] ?? 'Training',
     date: row.session_date,
@@ -63,24 +97,44 @@ export function readTraining(row) {
   };
 }
 
-// Returns the new session id.
+function sessionRow(uid, t, planned) {
+  return {
+    profile_id: uid,
+    session_date: t.date,
+    type: t.type,
+    status: planned ? 'planned' : 'logged',
+    duration_minutes: durationBetween(t.start, t.end),
+    rating: planned || t.type === 'recovery' ? null : t.effort,
+    notes: packNotes(t),
+    source: 'manual',
+    start_time: t.start || null,
+  };
+}
+
+// Returns the new session id. Future dates are saved as planned.
 export async function createTraining(uid, t) {
-  const { data, error } = await supabase
-    .from('training_sessions')
-    .insert({
-      profile_id: uid,
-      session_date: t.date,
-      type: t.type,
-      status: 'logged',
-      duration_minutes: durationBetween(t.start, t.end),
-      rating: t.type === 'recovery' ? null : t.effort,
-      notes: packNotes(t),
-      source: 'manual',
-    })
-    .select('id')
-    .single();
+  const row = sessionRow(uid, t, isFutureDate(t.date));
+  const { data, error } = await writeSession(
+    (r) => supabase.from('training_sessions').insert(r).select('id').single(),
+    row,
+  );
   if (error) throw error;
   return data.id;
+}
+
+/** Saves changes to a session; a planned one on or before today becomes logged. */
+export async function updateTraining(uid, id, t) {
+  const row = sessionRow(uid, t, isFutureDate(t.date));
+  const { error } = await writeSession(
+    (r) => supabase.from('training_sessions').update(r).eq('id', id).eq('profile_id', uid),
+    row,
+  );
+  if (error) throw error;
+}
+
+export async function deleteTraining(uid, id) {
+  const { error } = await supabase.from('training_sessions').delete().eq('id', id).eq('profile_id', uid);
+  if (error) throw error;
 }
 
 export async function fetchMyTrainings(uid) {
@@ -96,7 +150,9 @@ export async function fetchMyTrainings(uid) {
 }
 
 export async function fetchTraining(id) {
-  const { data, error } = await supabase.from('training_sessions').select(SELECT).eq('id', id).maybeSingle();
+  const { data, error } = await selectSessions((sel) =>
+    supabase.from('training_sessions').select(sel).eq('id', id).maybeSingle(),
+  );
   if (error) throw error;
   return data;
 }

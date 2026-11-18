@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CaretRight, X } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -17,12 +17,24 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CaptionField } from '@/components/compose/MatchPostEditor';
+import SuccessSheet from '@/components/compose/SuccessSheet';
 import { ChipGroup, DateField, NotchLabel, SelectField, TimeField } from '@/components/compose/Pickers';
 import Button from '@/components/ui/Button';
 import PillTabs from '@/components/ui/PillTabs';
 import Slider from '@/components/ui/Slider';
 import { useUser } from '@/context/UserContext';
-import { ACTIVITIES, FOCUS_OPTIONS, TRAINING_KINDS, TRAINING_LABELS, createTraining, durationBetween } from '@/lib/trainings';
+import {
+  ACTIVITIES,
+  FOCUS_OPTIONS,
+  TRAINING_KINDS,
+  TRAINING_LABELS,
+  createTraining,
+  durationBetween,
+  fetchTraining,
+  isFutureDate,
+  readTraining,
+  updateTraining,
+} from '@/lib/trainings';
 import { colors, fonts } from '@/theme';
 
 const TYPE_CARDS = [
@@ -34,6 +46,13 @@ const TYPE_CARDS = [
 const TABS = TRAINING_KINDS.map((k) => ({ id: k, label: TRAINING_LABELS[k] }));
 const FOCUS = FOCUS_OPTIONS.map((f) => ({ value: f, label: f }));
 
+// "HH:MM" + minutes, wrapping past midnight.
+function addMinutes(time, minutes) {
+  const [h, m] = time.split(':').map(Number);
+  const t = (h * 60 + m + minutes) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
 function today() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -42,24 +61,29 @@ function today() {
 
 /**
  * Figma "Select training type" → "Log your training" (port of the web
- * AddTraining, log mode only). Saves to training_sessions, then opens the
- * Post about training composer for it (✕ there skips posting).
- * ?type=team|individual|recovery skips the first step.
+ * AddTraining). Saves to training_sessions, then opens the Post about
+ * training composer for it (✕ there skips posting). A future date schedules
+ * the session instead ("Training is scheduled").
+ * ?type=team|individual|recovery skips the first step; ?date= presets the
+ * date; ?id= opens a planned session to log it or change it.
  */
 export default function AddTraining() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useUser();
-  const { type: rawType } = useLocalSearchParams();
+  const { type: rawType, date: rawDate, id } = useLocalSearchParams();
+  const editId = typeof id === 'string' ? id : null;
   const startType = TRAINING_KINDS.includes(rawType) ? rawType : null;
+  // ?date=YYYY-MM-DD from the Trainings strip/calendar; future days schedule.
+  const startDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate ?? '') ? rawDate : today();
 
-  const [step, setStep] = useState(startType ? 'log' : 'type');
+  const [step, setStep] = useState(startType || editId ? 'log' : 'type');
   const [picked, setPicked] = useState(startType ?? 'individual');
   const [form, setForm] = useState({
     type: startType ?? 'individual',
     activity: '',
     other: '',
-    date: today(),
+    date: startDate,
     start: '',
     end: '',
     focus: null,
@@ -68,12 +92,50 @@ export default function AddTraining() {
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const [loaded, setLoaded] = useState(!editId);
+
+  // ?id=: fill the form from the planned session.
+  useEffect(() => {
+    if (!editId) return undefined;
+    let cancelled = false;
+    fetchTraining(editId)
+      .then((row) => {
+        if (cancelled) return;
+        const t = readTraining(row);
+        if (t) {
+          const known = ACTIVITIES[t.type]?.includes(t.activity);
+          const start = t.startTime ?? '';
+          setForm((f) => ({
+            ...f,
+            type: t.type === 'match' ? 'team' : t.type,
+            activity: !t.activity ? '' : known ? t.activity : 'Other',
+            other: !t.activity || known ? '' : t.activity,
+            date: t.date,
+            start,
+            end: start && t.duration ? addMinutes(start, t.duration) : '',
+            focus: t.focus || null,
+            description: t.description,
+            effort: t.effort ?? 3,
+          }));
+        }
+        setLoaded(true);
+      })
+      .catch(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [editId]);
 
   const patch = (v) => setForm((f) => ({ ...f, ...v }));
   const clearError = (k) => setErrors((e) => ({ ...e, [k]: null }));
 
   const choose = () => {
-    if (picked === 'match') return router.replace('/add-match');
+    if (picked === 'match') {
+      return isFutureDate(form.date)
+        ? router.replace({ pathname: '/schedule-match', params: { date: form.date } })
+        : router.replace({ pathname: '/add-match', params: { date: form.date } });
+    }
     patch({ type: picked, activity: '', other: '' });
     setStep('log');
   };
@@ -89,26 +151,35 @@ export default function AddTraining() {
     if (Object.keys(e).length || saving) return;
 
     setSaving(true);
+    const t = { ...form, activity: form.activity === 'Other' ? form.other.trim() : form.activity };
     try {
-      const id = await createTraining(user.id, {
-        ...form,
-        activity: form.activity === 'Other' ? form.other.trim() : form.activity,
-      });
-      router.replace({ pathname: '/post-about-training/[trainingId]', params: { trainingId: id } });
+      let sessionId = editId;
+      if (editId) await updateTraining(user.id, editId, t);
+      else sessionId = await createTraining(user.id, t);
+      if (planning) {
+        setScheduled(true);
+        return;
+      }
+      router.replace({ pathname: '/post-about-training/[trainingId]', params: { trainingId: sessionId } });
     } catch (err) {
-      Alert.alert('Could not save your training', err?.message ?? 'Try again.');
+      Alert.alert(
+        planning ? 'Could not schedule your training' : 'Could not save your training',
+        err?.code === '23514' ? 'Planning trainings needs the latest database update.' : (err?.message ?? 'Try again.'),
+      );
       setSaving(false);
     }
   };
 
   const activities = ACTIVITIES[form.type];
-  const showFocusAndEffort = form.type !== 'recovery';
+  const planning = isFutureDate(form.date);
+  const showFocus = form.type !== 'recovery';
+  const showEffort = showFocus && !planning;
 
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.title} accessibilityRole="header">
-          {step === 'type' ? 'Select training type' : 'Log your training'}
+          {step === 'type' ? 'Select training type' : planning ? 'Schedule training' : 'Log your training'}
         </Text>
         <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
           <X size={24} color={colors.black} />
@@ -199,6 +270,8 @@ export default function AddTraining() {
             <DateField
               label="Date"
               required
+              allowFuture
+              yearsAhead={1}
               sheetTitle="Date"
               value={form.date}
               onChange={(v) => {
@@ -235,7 +308,7 @@ export default function AddTraining() {
               {errors.time ? <Text style={styles.error}>{errors.time}</Text> : null}
             </View>
 
-            {showFocusAndEffort ? (
+            {showFocus ? (
               <>
                 <SelectField
                   label="Session focus"
@@ -245,10 +318,12 @@ export default function AddTraining() {
                   options={FOCUS}
                   onChange={(v) => patch({ focus: v })}
                 />
-                <View>
-                  <Text style={styles.section}>Effort rating</Text>
-                  <Slider value={form.effort} onChange={(v) => patch({ effort: v })} label="Effort rating" />
-                </View>
+                {showEffort ? (
+                  <View>
+                    <Text style={styles.section}>Effort rating</Text>
+                    <Slider value={form.effort} onChange={(v) => patch({ effort: v })} label="Effort rating" />
+                  </View>
+                ) : null}
               </>
             ) : null}
           </ScrollView>
@@ -262,12 +337,18 @@ export default function AddTraining() {
           <Button
             size="big"
             type="primary"
-            label={saving ? 'Saving…' : 'Submit training session'}
-            disabled={saving}
+            label={saving ? 'Saving…' : planning ? 'Schedule training' : 'Submit training session'}
+            disabled={saving || !loaded}
             onPress={submit}
           />
         )}
       </View>
+      <SuccessSheet
+        visible={scheduled}
+        title="Training is scheduled"
+        subtitle="Be consistent to keep your performance high"
+        onClose={() => router.back()}
+      />
     </View>
   );
 }

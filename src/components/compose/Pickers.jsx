@@ -164,13 +164,13 @@ export function StepperField({ label, required, title, value, onChange, placehol
   );
 }
 
-function NumberStepper({ value, onChange, min, max, label }) {
+export function NumberStepper({ value, onChange, min, max, label, step: by = 1, style }) {
   const canDec = value > min;
   const canInc = value < max;
-  const step = (d) => onChange(Math.max(min, Math.min(max, value + d)));
+  const step = (d) => onChange(Math.max(min, Math.min(max, value + d * by)));
   return (
     <View
-      style={styles.stepper}
+      style={[styles.stepper, style]}
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={label}
@@ -272,7 +272,14 @@ export function DateField({
         value={display}
         placeholder={placeholder}
         icon={CalendarBlank}
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          // Open on the current value (it may have been set after mount, e.g. from a tapped day).
+          if (value) {
+            const [y, m, d] = value.split('-').map(Number);
+            setSel({ y, m: m - 1, d });
+          }
+          setOpen(true);
+        }}
         error={error}
       />
       <BottomSheet visible={open} onClose={() => setOpen(false)} title={sheetTitle}>

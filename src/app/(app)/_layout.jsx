@@ -11,6 +11,9 @@ const SLIDE_UP = new Set([
   'add-training',
   'post-about-match/index',
   'post-about-training/index',
+  'progress/target',
+  'schedule-match',
+  'pro/index',
 ]);
 
 // Signed-in app: the (tabs) shell, plus full-screen pages pushed over it

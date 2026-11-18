@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinkSimple, ShareNetwork, X } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -27,6 +27,7 @@ import IconButton from '@/components/ui/IconButton';
 import { useUser } from '@/context/UserContext';
 import { formatMatchDate } from '@/lib/format';
 import { createMatch, createPost, fetchClub } from '@/lib/posts';
+import { fetchPlannedMatch, linkPlannedMatch } from '@/lib/progress';
 import { colors, fonts } from '@/theme';
 
 const opts = (values, label = String) => values.map((v) => ({ value: v, label: label(v) }));
@@ -38,6 +39,11 @@ const MATCH_TYPES = opts([
   'National teams match (friendly)',
 ]);
 // "Hobro IK - Superliga", as in the design.
+const todayKey = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+};
 const clubLabel = (club) => (club ? [club.name, club.league].filter(Boolean).join(' - ') : '');
 
 const MINUTES = Array.from({ length: 121 }, (_, i) => i);
@@ -56,11 +62,16 @@ export default function AddMatch() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, profile } = useUser();
+  // ?planned=<planned_matches id>: logging a scheduled match.
+  // ?date=YYYY-MM-DD: the day tapped in Progress → Trainings.
+  const { planned, date: dateParam } = useLocalSearchParams();
+  const plannedId = typeof planned === 'string' ? planned : null;
+  const startDate = typeof dateParam === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) && dateParam <= todayKey() ? dateParam : '';
 
   const [form, setForm] = useState({
     homeOrAway: null,
     league: 'League match',
-    date: '',
+    date: startDate,
     yourTeam: null,
     opponent: null,
     yourScore: null,
@@ -87,6 +98,28 @@ export default function AddMatch() {
   };
   const clearError = (key) => setErrors((e) => ({ ...e, [key]: null }));
 
+  // Prefill from the scheduled match.
+  useEffect(() => {
+    if (!plannedId || !user) return undefined;
+    let cancelled = false;
+    fetchPlannedMatch(user.id, plannedId)
+      .then((m) => {
+        if (cancelled || !m) return;
+        setForm((f) => ({
+          ...f,
+          homeOrAway: m.home_or_away ?? f.homeOrAway,
+          league: m.match_type || f.league,
+          date: m.match_date,
+          yourTeam: m.your_team ? { id: m.your_team_id, name: m.your_team } : f.yourTeam,
+          opponent: { id: m.opponent_id, name: m.opponent },
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [plannedId, user]);
+
   // Prefill "Your team" with my club.
   useEffect(() => {
     if (!profile?.club_id) return undefined;
@@ -111,7 +144,9 @@ export default function AddMatch() {
 
     setSaving(true);
     try {
-      setMatchId(await createMatch(user.id, form));
+      const newId = await createMatch(user.id, form);
+      if (plannedId) await linkPlannedMatch(user.id, plannedId, newId).catch(() => {});
+      setMatchId(newId);
       setStep('make-post');
     } catch (err) {
       Alert.alert('Could not add the match', err?.message ?? 'Try again.');
