@@ -1,11 +1,13 @@
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeft, Bell, ChatCircle } from 'phosphor-react-native';
+import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import IconButton from '@/components/ui/IconButton';
 import { useUser } from '@/context/UserContext';
+import { fetchUnreadCount } from '@/lib/notifications';
 import { colors, fonts } from '@/theme';
 
 // Ports of the web Topbar variants. On web one component switched on the URL;
@@ -14,10 +16,25 @@ import { colors, fonts } from '@/theme';
 const logo = require('@/assets/logos/main-logo.svg');
 
 // Home: logo on the left, notifications + messages with badges on the right.
-// Notifications uses it with `showBack` and without the actions.
+// The unread notification count refreshes whenever the screen comes into view
+// (the web never loaded it, so its badge was always empty).
 export function MainTopbar({ showBack = false, showActions = true }) {
   const router = useRouter();
-  const { counts } = useUser();
+  const { user, counts, setCounts } = useUser();
+  const uid = user?.id;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!showActions || !uid) return undefined;
+      let cancelled = false;
+      fetchUnreadCount(uid)
+        .then((n) => !cancelled && setCounts((c) => (c.notifications === n ? c : { ...c, notifications: n })))
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [showActions, uid, setCounts]),
+  );
 
   return (
     <TopbarFrame>

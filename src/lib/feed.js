@@ -90,6 +90,23 @@ export async function fetchFeedPage(authorIds, before = null) {
   return Array.isArray(data) ? data : [];
 }
 
+// One post (post page). Same columns and training-join fallback as the feed.
+export async function fetchPost(id) {
+  const run = (withTraining) =>
+    supabase
+      .from('posts')
+      .select(withTraining ? POST_FIELDS + TRAINING_JOIN : POST_FIELDS)
+      .eq('id', id)
+      .maybeSingle();
+  let { data, error } = await run(trainingJoinAvailable);
+  if (error && trainingJoinAvailable && isMissingRelation(error)) {
+    trainingJoinAvailable = false;
+    ({ data, error } = await run(false));
+  }
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchLikedPostIds(userId, postIds) {
   if (!postIds.length) return [];
   const { data, error } = await supabase
@@ -113,14 +130,32 @@ export async function fetchSuggestedProfiles(excludeIds, limit = 10) {
   return Array.isArray(data) ? data : [];
 }
 
+// Comment likes need the comment_likes table (supabase/migrations/
+// 20261118_comment_likes.sql). Until it exists the embed is dropped and
+// comments load as before, without likes.
+const COMMENT_LIKES_JOIN = `,
+  likes:comment_likes ( user_id )
+`;
+let commentLikesAvailable = true;
+export const commentLikesEnabled = () => commentLikesAvailable;
+
+// Adds `likers` (user ids) to each comment.
+const withLikers = (c) => ({ ...c, likers: (c.likes ?? []).map((l) => l.user_id) });
+
 export async function fetchComments(postId) {
-  const { data, error } = await supabase
-    .from('post_comments')
-    .select(COMMENT_SELECT)
-    .eq('post_id', postId)
-    .order('created_at', { ascending: true });
+  const run = (withLikes) =>
+    supabase
+      .from('post_comments')
+      .select(withLikes ? COMMENT_SELECT + COMMENT_LIKES_JOIN : COMMENT_SELECT)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+  let { data, error } = await run(commentLikesAvailable);
+  if (error && commentLikesAvailable && isMissingRelation(error)) {
+    commentLikesAvailable = false;
+    ({ data, error } = await run(false));
+  }
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return (Array.isArray(data) ? data : []).map(withLikers);
 }
 
 export async function addComment({ postId, postAuthorId, userId, content }) {
@@ -130,10 +165,13 @@ export async function addComment({ postId, postAuthorId, userId, content }) {
     .select(COMMENT_SELECT)
     .single();
   if (error) throw error;
+  data.likers = [];
 
   if (postAuthorId && postAuthorId !== userId) {
     const { error: notifErr } = await supabase.from('notifications').insert({
       recipient_id: postAuthorId,
+      user_id: postAuthorId, // legacy recipient column, still NOT NULL in the live DB
+      read: false,
       actor_id: userId,
       post_id: postId,
       comment_id: data.id,
@@ -149,6 +187,8 @@ export async function notifyLike({ postId, postAuthorId, userId }) {
   if (!postAuthorId || postAuthorId === userId) return;
   const { error } = await supabase.from('notifications').insert({
     recipient_id: postAuthorId,
+    user_id: postAuthorId, // legacy recipient column, still NOT NULL in the live DB
+    read: false,
     actor_id: userId,
     post_id: postId,
     type: 'like',

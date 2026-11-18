@@ -5,12 +5,13 @@ import { StyleSheet, View } from 'react-native';
 import { colors } from '@/theme';
 
 // Port of the web ProfilePicture (+ VerifiedBadge).
-// size — "xlarge" (84) | "large" (60) | "medium" (44) | "small" (32)
+// size — "xlarge" (84) | "large" (60) | "medium" (44) | "small" (32) | "mini" (20)
 const SIZES = {
   xlarge: { box: 84, badgePad: 3, badgeIcon: 14 },
   large: { box: 60, badgePad: 2.25, badgeIcon: 10 },
   medium: { box: 44, badgePad: 2.25, badgeIcon: 8 },
   small: { box: 32, badgePad: 1.5, badgeIcon: 5 },
+  mini: { box: 20, badgePad: 1, badgeIcon: 4 },
 };
 
 export default function Avatar({ uri, size = 'medium', verified = false }) {

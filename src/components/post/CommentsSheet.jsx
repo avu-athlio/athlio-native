@@ -6,7 +6,8 @@ import CommentCard from '@/components/post/CommentCard';
 import BottomSheet from '@/components/ui/BottomSheet';
 import IconButton from '@/components/ui/IconButton';
 import { useUser } from '@/context/UserContext';
-import { addComment, fetchComments } from '@/lib/feed';
+import { likeComment, unlikeComment } from '@/lib/commentLikes';
+import { addComment, commentLikesEnabled, fetchComments } from '@/lib/feed';
 import { colors, fonts } from '@/theme';
 
 // Port of the web CommentsOverlay as a bottom sheet (moves up with the keyboard).
@@ -36,6 +37,48 @@ export default function CommentsSheet({ target, onClose, onCommentAdded, onOpenP
   const loading = !!postId && loaded.postId !== postId;
   const comments = loading ? [] : loaded.comments;
   const error = submitError || (loading ? null : loaded.error);
+
+  // Optimistic comment like; rolled back if the request fails.
+  const setLiked = (commentId, on) =>
+    setLoaded((prev) => ({
+      ...prev,
+      comments: prev.comments.map((c) =>
+        c.id !== commentId
+          ? c
+          : { ...c, likers: on ? [...new Set([...(c.likers ?? []), user.id])] : (c.likers ?? []).filter((x) => x !== user.id) },
+      ),
+    }));
+
+  const toggleCommentLike = async (comment, liked) => {
+    if (!user?.id) return;
+    setLiked(comment.id, !liked);
+    try {
+      if (liked) await unlikeComment({ commentId: comment.id, userId: user.id });
+      else
+        await likeComment({
+          commentId: comment.id,
+          userId: user.id,
+          commentAuthorId: comment.author_id || comment.profiles?.id,
+          postId,
+        });
+    } catch {
+      setLiked(comment.id, liked);
+    }
+  };
+
+  const likesFor = (c) => {
+    if (!commentLikesEnabled()) return null; // table not created yet
+    const likers = c.likers ?? [];
+    const liked = likers.includes(user?.id);
+    const authorOfComment = c.author_id || c.profiles?.id;
+    return {
+      count: likers.length,
+      liked,
+      byAuthor: !!target?.authorId && likers.includes(target.authorId),
+      canLike: !!user?.id && authorOfComment !== user.id,
+      onToggle: () => toggleCommentLike(c, liked),
+    };
+  };
 
   const close = () => {
     setText('');
@@ -72,6 +115,7 @@ export default function CommentsSheet({ target, onClose, onCommentAdded, onOpenP
             renderItem={({ item }) => (
               <CommentCard
                 comment={item}
+                likes={likesFor(item)}
                 onOpenProfile={(id) => {
                   close();
                   onOpenProfile(id);
